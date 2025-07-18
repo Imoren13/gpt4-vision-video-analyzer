@@ -1,0 +1,63 @@
+#	import OpenAI
+from openai import OpenAI
+
+
+#	Enter your API key
+from getpass import getpass
+OPENAI_API_KEY = getpass()
+
+#	Construct a new synchronous openai client instance
+client = OpenAI(api_key=OPENAI_API_KEY)
+
+import cv2
+import base64
+
+#	open the video using VideoCapture
+myVideo = cv2.VideoCapture(" ") # Enter location of file in your drive that you want analyzed
+
+#	open the video and read fram by frame
+#	store each frame into base64FrameList
+base64FramesList = []
+while myVideo.isOpened():
+    success, frame = myVideo.read()
+    if not success:
+        break
+    _, buffer = cv2.imencode(".jpg", frame)
+    base64FramesList.append(base64.b64encode(buffer).decode('utf-8'))
+
+myVideo.release()
+
+#	print out how many framse so far
+print(len(base64FramesList), "frames read.")
+
+#	generate user prompt
+#	user prompt has two parts. Part 1: user request
+#	Part 2: selected frames in the video. If we use all frames,
+#	the computation will be costly.
+#	You can ask questions for this video.
+myMessages = [
+    {
+        "role": "user",
+        "content": [
+            """Are these frames are from a video or image. What's happening in the video or image. Where is the video or image?
+              is the video or image happened in day or evening? In the video, is there a bicycle (Yes/No). In this video or image, is there a horse (Yes/No). In this video or image, is there a cat (Yes/No).
+              If there is a cat what is the cat doing?""",
+            *map(lambda x: {"image": x}, base64FramesList[::70]), #	please change the number of selected frames
+         ]
+     }
+ ]
+myMessages
+
+#	generate response based on messages which we created in the previous code
+myResponse = client.chat.completions.create(
+    model='gpt-4-turbo',
+    messages=myMessages,
+)
+
+#	wrap function will make sure our printout is nicely placed out
+import textwrap
+def wrap(x):
+    #	Fill a single paragraph of text, returning a new string.
+    return textwrap.fill(x, replace_whitespace=False, fix_sentence_endings=True)
+
+print(wrap(myResponse.choices[0].message.content))
